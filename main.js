@@ -2,13 +2,15 @@ const dotenv = require('dotenv');
 const mysql = require('mysql2/promise');
 const getTokensAndDbSave = require("./utils/getlist");
 const { getTokensHistory } = require("./utils/save_token_info");
-const Loader = require('./utils/pretty_text');
 const cron = require('node-cron');
 const moment = require('moment');
-const axios = require('axios');
-
+const TelegramBot = require('node-telegram-bot-api');
 
 dotenv.config();
+
+const token = process.env.TELEGRAM_BOT_TOKEN;
+const bot = new TelegramBot(token, { polling: true });
+let chatIds = [];
 
 let connection;
 
@@ -68,6 +70,9 @@ async function buildSignal(candles, tokenId) {
         const [results, fields] = await connection.execute(sql, [tokenId]);
         let token = results[0];
         console.log(new Date(), token);
+        chatIds.forEach(chatId => {
+            bot.sendMesage(chatId, JSON.stringify(token));
+        });
 
     } catch (err) {
         console.log(err);
@@ -116,11 +121,9 @@ async function checkTokensFormula() {
 async function main() {
     console.log("Starting Solana Scanning");
 
-    let loader = new Loader("1) Connecting to Database", "Done");
-    loader.startLoading()
+    console.log("1) Connecting to Database");
     await connectToDatabase();
-    loader.stopLoading();
-
+    console.log("Done");
 
     // await closeConnection();
     // process.exit();
@@ -132,17 +135,22 @@ main();
 cron.schedule('0 * * * *', async () => {
     const oraCorrente = moment().hour();
     if (oraCorrente % 2 === 0) {
-        loader = new Loader("2) Retrieving Tokens fdv 100k min", "Done");
-        loader.startLoading()
+        console.log("2) Retrieving Tokens fdv 100k min");
         await getTokensAndDbSave(connection);
-        loader.stopLoading();
+        console.log("Done");
 
-        loader = new Loader("3) Retrieving last 21 periods", "Done");
+        console.log("3) Retrieving last 21 periods");
         await getTokensHistory(connection);
-        loader.stopLoading();
+        console.log("Done");
 
         // ora applico la formula per tutti i token
         await checkTokensFormula();
 
+    }
+});
+
+bot.on('message', (msg) => {
+    if (!chatIds.includes(msg.chat.id)){
+        chatIds.push(msg.chat.id);
     }
 });
