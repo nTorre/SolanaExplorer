@@ -10,7 +10,7 @@ dotenv.config();
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const bot = new TelegramBot(token, { polling: true });
-let chatIds = [];
+let chatIds = [488436824];
 
 let connection;
 
@@ -71,7 +71,7 @@ async function buildSignal(candles, tokenId) {
         let token = results[0];
         console.log(new Date(), token);
         chatIds.forEach(chatId => {
-            bot.sendMesage(chatId, JSON.stringify(token));
+            bot.sendMessage(chatId, JSON.stringify(token));
         });
 
     } catch (err) {
@@ -125,6 +125,9 @@ async function main() {
     await connectToDatabase();
     console.log("Done");
 
+    await checkTokensFormula();
+
+
     // await closeConnection();
     // process.exit();
 }
@@ -152,5 +155,6 @@ cron.schedule('0 * * * *', async () => {
 bot.on('message', (msg) => {
     if (!chatIds.includes(msg.chat.id)){
         chatIds.push(msg.chat.id);
+        console.log(msg.chat.id);
     }
 });
