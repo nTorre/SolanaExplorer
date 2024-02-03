@@ -11,7 +11,8 @@ async function insertTokenCandle(tokenData) {
             'INSERT INTO token_historical_data (token_id, close, high, low, open, type, unixTime, volume) ' +
             'SELECT id, ?, ?, ?, ?, ?, ?, ? ' +
             'FROM token_details ' +
-            'WHERE address = ? ',
+            'WHERE address = ? ' + 
+            'ON DUPLICATE KEY UPDATE close=?, high=?, low=?, open=?, type=?, volume=?',
             [
                 tokenData.c,
                 tokenData.h,
@@ -20,12 +21,19 @@ async function insertTokenCandle(tokenData) {
                 tokenData.type,
                 tokenData.unixTime,
                 tokenData.v,
-                tokenData.address
+                tokenData.address,
+
+                tokenData.c,
+                tokenData.h,
+                tokenData.l,
+                tokenData.o,
+                tokenData.type,
+                tokenData.v
             ]
         );
 
         if (results.insertId) {
-            //console.log('Token inserito con successo! ID del token:', results.insertId);
+            console.log('Token inserito con successo! ID del token:', results.insertId);
         } else {
             console.log('Token già presente. Dati aggiornati.');
         }

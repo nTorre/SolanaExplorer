@@ -125,6 +125,10 @@ async function main() {
     await connectToDatabase();
     console.log("Done");
 
+    console.log("3) Retrieving last 21 periods");
+        await getTokensHistory(connection);
+        console.log("Done");
+
     await checkTokensFormula();
 
 
