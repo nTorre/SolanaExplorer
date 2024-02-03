@@ -1,0 +1,16 @@
+{
+  "dependencies": {
+    "ansi-escapes": "^6.2.0",
+    "axios": "^1.6.5",
+    "dotenv": "^16.3.1",
+    "echarts": "^5.4.3",
+    "install": "^0.13.0",
+    "jsdom": "^24.0.0",
+    "moment": "^2.30.1",
+    "mysql2": "^3.7.0",
+    "node-cron": "^3.0.3",
+    "node-telegram-bot-api": "^0.64.0",
+    "npm": "^10.3.0",
+    "prompt-sync": "^4.2.0"
+  }
+}
