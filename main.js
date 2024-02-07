@@ -5,6 +5,9 @@ const { getTokensHistory } = require("./utils/save_token_info");
 const cron = require('node-cron');
 const moment = require('moment');
 const TelegramBot = require('node-telegram-bot-api');
+const sendMessage = require('./utils/send_message');
+const fs = require('fs');
+const path = require('path');
 
 dotenv.config();
 
@@ -13,6 +16,13 @@ const bot = new TelegramBot(token, { polling: true });
 let chatIds = [488436824];
 
 let connection;
+
+function sleep(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}
+
 
 // Funzione per connettersi al database
 async function connectToDatabase() {
@@ -50,6 +60,7 @@ function checkFormula(candles) {
 
     let sma = volSum / i;
     let lastVol = lastCandle.volume;
+    let lastPrice = lastCandle.close;
 
     // if ((lastVol > sma*1.5) && (lastCandle.open<lastCandle.close)){
     //     console.log(candles[1]);
@@ -57,22 +68,27 @@ function checkFormula(candles) {
     // }
 
 
-    return ((lastVol > sma * 1.5) && (lastCandle.open < lastCandle.close));
+    return {
+        isValid: ((lastVol > sma * 1.5) && (lastCandle.open < lastCandle.close)),
+        sma: sma,
+        lastVol: lastVol,
+        lastPrice: lastPrice
+    };
 }
 
-async function buildSignal(candles, tokenId) {
+async function buildSignal(candles, tokenId, sma, lastVol, lastPrice) {
     // get token info
-    //console.log(tokenId);
     let sql = 'SELECT * from token_details td ' +
         'WHERE td.id = ?';
 
     try {
         const [results, fields] = await connection.execute(sql, [tokenId]);
         let token = results[0];
-        console.log(new Date(), token);
-        chatIds.forEach(chatId => {
-            bot.sendMessage(chatId, JSON.stringify(token));
-        });
+        //console.log(new Date(), token);
+        for (let i=0; i<chatIds.length; i++){
+            let chatId = chatIds[i];
+            await sendMessage(bot, chatId, candles, token, lastPrice, lastVol, sma)
+        }
 
     } catch (err) {
         console.log(err);
@@ -88,9 +104,11 @@ async function checkTokenFormula(tokenId) {
 
     try {
         const [results, fields] = await connection.execute(sql, [tokenId]);
-        if (results.length >= 22 && checkFormula(results)) {
+        let {isValid, sma, lastVol, lastPrice} = checkFormula(results);
+        if (results.length >= 22 && isValid) {
             //console.log(tokenId);
-            await buildSignal(results, tokenId);
+            await buildSignal(results, tokenId, sma, lastVol, lastPrice);
+            console.log("Sent Signal", tokenId);
             // costruisci e manda segnale
 
         } else {
@@ -103,6 +121,8 @@ async function checkTokenFormula(tokenId) {
 }
 
 async function checkTokensFormula() {
+    // pulisco la cartella dei grafici
+    deleteFilesInDirectory("./charts")
     let sql = 'SELECT * from token_details td ' +
         'WHERE td.mc > 100000';
 
@@ -125,11 +145,11 @@ async function main() {
     await connectToDatabase();
     console.log("Done");
 
-    console.log("3) Retrieving last 21 periods");
-        await getTokensHistory(connection);
-        console.log("Done");
+    // console.log("3) Retrieving last 21 periods");
+    //     await getTokensHistory(connection);
+    //     console.log("Done");
 
-    await checkTokensFormula();
+    //await checkTokensFormula();
 
 
     // await closeConnection();
@@ -156,9 +176,45 @@ cron.schedule('0 * * * *', async () => {
     }
 });
 
+
 bot.on('message', (msg) => {
     if (!chatIds.includes(msg.chat.id)){
         chatIds.push(msg.chat.id);
         console.log(msg.chat.id);
     }
 });
+
+function deleteFilesInDirectory(directoryPath) {
+    // Ottieni un elenco dei file nella cartella
+    fs.readdir(directoryPath, (err, files) => {
+      if (err) {
+        console.error('Errore durante la lettura della cartella:', err);
+        return;
+      }
+  
+      // Elimina ciascun file nella cartella
+      files.forEach((file) => {
+        const filePath = path.join(directoryPath, file);
+  
+        // Verifica se è un file
+        fs.stat(filePath, (statErr, stats) => {
+          if (statErr) {
+            console.error('Errore durante il recupero delle informazioni sul file:', statErr);
+            return;
+          }
+  
+          if (stats.isFile()) {
+            // Elimina il file
+            fs.unlink(filePath, (unlinkErr) => {
+              if (unlinkErr) {
+                console.error('Errore durante l\'eliminazione del file:', unlinkErr);
+                return;
+              }
+  
+              console.log('File eliminato con successo:', filePath);
+            });
+          }
+        });
+      });
+    });
+  }
