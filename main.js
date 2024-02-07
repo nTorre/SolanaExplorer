@@ -181,6 +181,8 @@ bot.on('message', (msg) => {
     if (!chatIds.includes(msg.chat.id)){
         chatIds.push(msg.chat.id);
         console.log(msg.chat.id);
+    } else {
+        console.log("Added", msg.chat.id);
     }
 });
 
