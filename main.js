@@ -149,7 +149,7 @@ async function main() {
     //     await getTokensHistory(connection);
     //     console.log("Done");
 
-    await checkTokensFormula();
+    //await checkTokensFormula();
 
 
     // await closeConnection();
