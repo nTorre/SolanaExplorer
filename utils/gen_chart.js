@@ -5,15 +5,9 @@ const echarts = require('echarts');
 
 function genChart(candles, path) {
 
-  let xVals = getXAxis(candles).reverse();
-  let yVals = getYAxis(candles).reverse();
-
-  // rimuovo l'ultima candela (è appena iniziata)
-  yVals.pop();
-  yVals.pop();
-
-  xVals.pop();
-
+  let xVals = getXAxis(candles);
+  let { yVals, miny, maxy } = getYAxis(candles);
+  let offset = maxy - miny;
 
   // close, open, min, max
   //xVals.pop();
@@ -29,9 +23,23 @@ function genChart(candles, path) {
   // use setOption as normal
   chart.setOption({
     xAxis: {
-      data: xVals
+      data: xVals,
     },
-    yAxis: {},
+    yAxis: {
+      min: miny - offset*0.2,
+      max: maxy + offset*0.2,
+      boundaryGap: false,
+      axisLabel: {
+        formatter: function (value) {
+          // Se il valore è inferiore a 0.001, visualizzalo in notazione scientifica
+          if (Math.abs(value) < 0.001) {
+            return value.toExponential(2); // Notazione scientifica con 2 decimali
+          } else {
+            return value.toFixed(3); // Altrimenti, visualizzalo con 2 decimali
+          }
+        }
+      }
+    },
     series: [
       {
         type: 'candlestick',
@@ -66,14 +74,27 @@ function getXAxis(candles) {
     vals.push(timestampToMMDDHHMM(candle.unixTime));
   });
 
-  return vals;
+  vals.pop();
+  return vals.reverse();
 
 }
 
 function getYAxis(candles) {
   // close, open, min, max
   let vals = [[]]
-  candles.forEach(candle => {
+  let candle = candles[0];
+  let miny = Number(candle.low);
+  let maxy = Number(candle.high);
+
+  for (let i = 1; i < candles.length; i++) {
+    let candle = candles[i];
+
+    let mintmp = Number(candle.low);
+    let maxtmp = Number(candle.high);
+
+    if (mintmp < miny) miny = mintmp;
+    if (maxtmp > maxy) maxy = maxtmp;
+
     let arr = [
       Number(candle.close),
       Number(candle.open),
@@ -81,8 +102,13 @@ function getYAxis(candles) {
       Number(candle.high)
     ];
     vals.push(arr);
-  });
-  return vals;
+  }
+
+  // rimuovo l'ultima candela (è appena iniziata)
+  vals.pop();
+  vals.pop();
+
+  return { yVals: vals.reverse(), miny: miny, maxy: maxy };
 }
 
 
@@ -340,5 +366,7 @@ testData = [
     volume: '18954.10610300000000000000'
   }
 ];
+
+genChart(testData, "test.png")
 
 module.exports = genChart;

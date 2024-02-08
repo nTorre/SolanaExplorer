@@ -27,8 +27,8 @@ Price USD: *${lastprice} $*
 FDV: *${fdv} $*
 Total liquidity: *${liquidity}*
 
-Last volume (2H): *${lastVol}*
-2H Volume MA(21): *${sma}*`;
+Last volume (2H): *${Number(lastVol).toFixed(2)}*
+2H Volume MA(21): *${Number(sma).toFixed(2)}*`;
 
     let file = "./charts/" + address + (new Date()).getTime() + ".png";
 
