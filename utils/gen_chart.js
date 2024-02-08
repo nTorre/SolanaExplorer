@@ -367,6 +367,6 @@ testData = [
   }
 ];
 
-genChart(testData, "test.png")
+// genChart(testData, "test.png")
 
 module.exports = genChart;
