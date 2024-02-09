@@ -13,7 +13,8 @@ dotenv.config();
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const bot = new TelegramBot(token, { polling: true });
-let chatIds = [488436824];
+let chatIds = [];
+let botTokens = [];
 
 let connection;
 
@@ -85,7 +86,7 @@ async function buildSignal(candles, tokenId, sma, lastVol, lastPrice) {
         const [results, fields] = await connection.execute(sql, [tokenId]);
         let token = results[0];
         //console.log(new Date(), token);
-        for (let i=0; i<chatIds.length; i++){
+        for (let i = 0; i < chatIds.length; i++) {
             let chatId = chatIds[i];
             await sendMessage(bot, chatId, candles, token, lastPrice, lastVol, sma)
         }
@@ -104,7 +105,7 @@ async function checkTokenFormula(tokenId) {
 
     try {
         const [results, fields] = await connection.execute(sql, [tokenId]);
-        let {isValid, sma, lastVol, lastPrice} = checkFormula(results);
+        let { isValid, sma, lastVol, lastPrice } = checkFormula(results);
         if (results.length >= 22 && isValid) {
             //console.log(tokenId);
             await buildSignal(results, tokenId, sma, lastVol, lastPrice);
@@ -151,6 +152,13 @@ async function main() {
 
     //await checkTokensFormula();
 
+    // genero token per l'autenticazione
+    console.log("Valid Tokens: ")
+    for (let i = 0; i < 10; i++) {
+        let token = generateRandomToken(20);
+        console.log(token);
+        botTokens.push(token);
+    }
 
     // await closeConnection();
     // process.exit();
@@ -178,45 +186,69 @@ cron.schedule('0 * * * *', async () => {
 
 
 bot.on('message', (msg) => {
-    if (!chatIds.includes(msg.chat.id)){
-        chatIds.push(msg.chat.id);
-        console.log(msg.chat.id);
+    if (!chatIds.includes(msg.chat.id)) {
+        // prendo il testo e controllo che sia un token valido
+        let text = msg.text;
+        console.log(text);
+        if (botTokens.includes(text)) {
+
+            let indexToRemove = botTokens.indexOf(text);
+            botTokens.splice(indexToRemove, 1);
+
+            chatIds.push(msg.chat.id);
+            console.log("Added chat id:", msg.chat.id);
+            bot.sendMessage(msg.chat.id, "Successfully logged");
+        } else {
+            bot.sendMessage(msg.chat.id, "Invalid Token");
+        }
     } else {
-        console.log("Added", msg.chat.id);
+        console.log("Already logged:", msg.chat.id);
     }
 });
 
 function deleteFilesInDirectory(directoryPath) {
     // Ottieni un elenco dei file nella cartella
     fs.readdir(directoryPath, (err, files) => {
-      if (err) {
-        console.error('Errore durante la lettura della cartella:', err);
-        return;
-      }
-  
-      // Elimina ciascun file nella cartella
-      files.forEach((file) => {
-        const filePath = path.join(directoryPath, file);
-  
-        // Verifica se è un file
-        fs.stat(filePath, (statErr, stats) => {
-          if (statErr) {
-            console.error('Errore durante il recupero delle informazioni sul file:', statErr);
+        if (err) {
+            console.error('Errore durante la lettura della cartella:', err);
             return;
-          }
-  
-          if (stats.isFile()) {
-            // Elimina il file
-            fs.unlink(filePath, (unlinkErr) => {
-              if (unlinkErr) {
-                console.error('Errore durante l\'eliminazione del file:', unlinkErr);
-                return;
-              }
-  
-              console.log('File eliminato con successo:', filePath);
+        }
+
+        // Elimina ciascun file nella cartella
+        files.forEach((file) => {
+            const filePath = path.join(directoryPath, file);
+
+            // Verifica se è un file
+            fs.stat(filePath, (statErr, stats) => {
+                if (statErr) {
+                    console.error('Errore durante il recupero delle informazioni sul file:', statErr);
+                    return;
+                }
+
+                if (stats.isFile()) {
+                    // Elimina il file
+                    fs.unlink(filePath, (unlinkErr) => {
+                        if (unlinkErr) {
+                            console.error('Errore durante l\'eliminazione del file:', unlinkErr);
+                            return;
+                        }
+
+                        console.log('File eliminato con successo:', filePath);
+                    });
+                }
             });
-          }
         });
-      });
     });
-  }
+}
+
+function generateRandomToken(length) {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let token = '';
+
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * characters.length);
+        token += characters[randomIndex];
+    }
+
+    return token;
+}
